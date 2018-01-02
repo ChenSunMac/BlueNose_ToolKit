@@ -34,11 +34,11 @@ def processBinFile(bin_file):
     
         for k in range(0, 8):
             raw_signal = raw_data[start_byte + k * 4008 + 40 : start_byte + k * 4008 + 4040].view('uint16')
-            raw_signal = (raw_signal.astype("double")-32768)/32768
+            raw_signal = np.float32((raw_signal.astype("double")-32768)/32768)
             raw_signal = np.asmatrix(raw_signal)
             #raw_first_ref = raw_data[start_byte+k*4008+32:start_byte +k*4008+34]
             #first_ref = raw_first_ref.view('uint16')
-            channel_index = raw_data[start_byte + k*4008 + 38].astype("int64")
+            channel_index = raw_data[start_byte + k*4008 + 38].astype("int")
             # FUTURE : add thickness and distance calculation here to save more time
             signal_matrices[channel_index, ii[0,channel_index], :] = raw_signal
             ii[0,channel_index] = ii[0,channel_index] + 1
