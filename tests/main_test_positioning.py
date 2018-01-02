@@ -52,6 +52,7 @@ for i in range(1, int(bin_file_size/32096) + 1):
     start_byte = start_byte +32096
 
 print("Total Time is about ", time.time() - start_PROCESSING, "to read binary file")
+
 #-------------------------------Calliper---------------------------------
 MATRIX_SIZE = (96, 520)
 distance = np.zeros(MATRIX_SIZE,  dtype='float32')
@@ -75,6 +76,8 @@ for chn in range(TOTAL_CHN):
         
 print("Total Time is about ", time.time() - start_PROCESSING, "to read binary file and calliper")       
         
+# del to gain more spaces
+del signal_matrices
         
 class OneFileMainWindowData(object):
     
