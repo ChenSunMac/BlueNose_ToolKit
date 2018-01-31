@@ -294,7 +294,7 @@ def animate(i):
     #a.legned() #(bbox_to_anchor)
     #a.legend(bbox_to_anchor=(0,1.02,1,.102), loc=3,ncol=2,borderaxespad=0)
 
-    sns.heatmap(distance, ax = calliper_plot, cbar = False, xticklabels = False, yticklabels = False)
+    calliper_plot.imshow(distance, extent=[0, 1, 0, 1], cbar = False, xticklabels = False, yticklabels = False)
     title = "One channel Signal"
     signal_plot.set_title(title)
 
