@@ -20,9 +20,16 @@ import matplotlib.pyplot as plt
 
 import pickle
 from scipy.signal import hilbert
+import scipy.signal
+import os
+
+INITIAL_DIR_TEST = os.getcwd()
+## GLOBAL VARIABLE
+InputFolderPath_G =  INITIAL_DIR_TEST
+OutputFolderPath_G = INITIAL_DIR_TEST
 
 # GUI CONFIGURE
-INITIAL_DIR = "C:/Users/chens/Documents/gui-dev/SmallTempData"
+INITIAL_DIR = "C:\\Users\\chens\\Documents\\gui-dev\\SmallTempData"
 LARGE_FONT= ("Verdana", 12)
 NORM_FONT = ("Helvetica", 10)
 SMALL_FONT = ("Helvetica", 8)
@@ -35,8 +42,14 @@ trLayout = [1, 33, 17, 29, 13, 93, 49, 81, 65, 77, 61, 21, 25, 9, 41, 5, 37,
             91, 55, 87, 47, 4, 36, 20, 32, 16, 96, 52, 84, 68, 80, 64, 24, 28,
             12, 44, 8, 40, 72, 76, 60, 92, 56, 88, 48]
 
-#trLayout = np.linspace(1, 96, 96, dtype = 'uint')
+trLayout = np.linspace(1, 96, 96, dtype = 'uint')
 trLayout =  np.asarray(trLayout) - 1
+LAYOUT1 = trLayout
+#trLayout = np.linspace(1, 96, 96, dtype = 'uint')
+LAYOUT2 =  np.asarray(trLayout) - 1
+LAYOUT3 = LAYOUT2
+TR_LAYOUT = (LAYOUT1, LAYOUT2, LAYOUT3)
+
 
 S = [-0.0729,   -0.2975,   -0.2346 ,   0.1057   , 0.8121  ,  0.5721  , -0.4512,   
      -0.7820  , -0.5137    , 0.4829    ,0.8867 ,  -0.0891 ,  -0.4474  ,-0.0875 ,   0.2159]
@@ -59,10 +72,17 @@ POS_ARRAY = np.round(POS_ARRAY).astype(int)
 NumOfSampleOffsetPrChn = np.tile(POS_ARRAY, 16)
 
 # --------------------GLOBAL VARIABLES
-trigger_map = np.zeros(MATRIX_SIZE,  dtype='uint16')
-signal_matrices = np.zeros(MATRICES_SIZE,  dtype='float16')
-norm_signal_matrices = np.zeros(MATRICES_SIZE,  dtype='float16')
+TRIGGER_MAP = np.zeros(MATRIX_SIZE,  dtype='uint16')
+SIGNAL_MATRICES = np.zeros(MATRICES_SIZE,  dtype='float16')
+NORM_SIGNAL_MATRICES = np.zeros(MATRICES_SIZE,  dtype='float16')
+CALLIPER_MAP= np.zeros(MATRIX_SIZE,  dtype='float')
+
+
 thickness_map = np.zeros(MATRIX_SIZE,  dtype='float64')
+
+
+
+ROLL_R = np.zeros(( 260 , 1 ), dtype=np.uint16)
 # since using imported pyplot
 
 trigger_map_f = Figure() # trigger map
@@ -87,14 +107,13 @@ def processBinFile(OpenedFile):
     start_byte = 0
     rp_i = 0
     rp_locs = np.zeros(6240, dtype='int') 
-    roll_r = np.zeros(( 260 , 1 ), dtype=np.uint16)
     for i in range(1, int(bin_file_size/32096) + 1):
         raw_fire_time = raw_data[start_byte + 24:start_byte + 32]
         roll_b = raw_data[start_byte + 16:start_byte + 18].view('int16')
         pitch_b = raw_data[start_byte + 18:start_byte + 20].view('int16')
         if((roll_b != 8224) | (pitch_b != 8224)):
             rp_locs[rp_i] = i
-            roll_r[rp_i] = roll_b
+            ROLL_R[rp_i] = roll_b
             rp_i = rp_i + 1
             
         for k in range(0, 8):
@@ -104,10 +123,10 @@ def processBinFile(OpenedFile):
             #raw_first_ref = raw_data[start_byte+k*4008+32:start_byte +k*4008+34]
             #first_ref = raw_first_ref.view('uint16')
             channel_index = raw_data[start_byte + k*4008 + 38].astype("int")
-            signal_matrices[channel_index, ii[0,channel_index], :] = raw_signal
+            SIGNAL_MATRICES[channel_index, ii[0,channel_index], :] = raw_signal
             ii[0,channel_index] = ii[0,channel_index] + 1
         start_byte = start_byte +32096
-    return signal_matrices, roll_r
+    return SIGNAL_MATRICES, ROLL_R
 
 def processRoll_r (roll_r):
     """
@@ -139,8 +158,8 @@ def take_3D_norm(signal_matrices):
         for rd in range(TOTAL_ROUND):
             signal = signal_matrices[trLayout[chn], rd, :]
             norm_signal = np.float16( signal/np.max(np.absolute(signal)))
-            norm_signal_matrices[chn, rd, :] = norm_signal
-    return norm_signal_matrices
+            NORM_SIGNAL_MATRICES[chn, rd, :] = norm_signal
+    return NORM_SIGNAL_MATRICES
 
 def calculate_trigger_map(norm_matrices):
     """
@@ -159,14 +178,59 @@ def calculate_trigger_map(norm_matrices):
                 trigger = 1499
             else:
                 pass
-            trigger_map[chn, rd] = trigger
-    return trigger_map
+            TRIGGER_MAP[chn, rd] = trigger
+    return TRIGGER_MAP
 
+def median_filter_2D (trigger_map, FILTER_DIM = 2):
+    """
+    Use 2-D median filter to smooth the trigger map
+    """
+    
+    top_row = trigger_map[0 : FILTER_DIM, :]
+    bot_row = trigger_map[-FILTER_DIM : , :]
+    var_map1 =  np.vstack((trigger_map,top_row))
+    var_map2 =  np.vstack((bot_row,var_map1))
+    left_col = var_map2[:, 0 : FILTER_DIM]
+    right_col = var_map2[:, -FILTER_DIM : ]    
+    var_map3 =  np.hstack((var_map2,right_col))
+    var_map4 =  np.hstack((left_col,var_map3))
+    var_map5 = scipy.signal.medfilt(var_map4)
+    final_map = np.int16(var_map5[FILTER_DIM: -FILTER_DIM, FILTER_DIM:-FILTER_DIM])
+    
+    return final_map
+
+def calculate_calliper(trigger_map, start_delay = START_DELAY):
+    TOTAL_CHN, TOTAL_ROUND = trigger_map.shape
+    for chn in range(TOTAL_CHN):
+        for rd in range(TOTAL_ROUND):
+            CALLIPER_MAP[chn,rd] = np.float64( (start_delay + trigger_map[chn,rd])*740.0/15000000)
+    return CALLIPER_MAP
+
+def find_offset(TDC, chn, rd, calliper = CALLIPER_MAP, diameter = 1):
+    """
+    @ return:
+        - x_offset at given round and chn
+        - y_offset at given round and chn
+    """
+    top_ch_no = int(TDC[rd])
+    bot_ch_no = (top_ch_no + 48)%96
+    right_ch_no = (top_ch_no + 24)%96
+    left_ch_no = (top_ch_no + 72)%96
+    top_distance = calliper[top_ch_no, rd]
+    bot_distance = calliper[bot_ch_no, rd]
+    left_distance = calliper[left_ch_no, rd]
+    right_distance = calliper[right_ch_no, rd]
+    
+    y_offset = (bot_distance - top_distance)/2/diameter
+    x_offset = (left_distance - right_distance)/2/diameter
+    return x_offset, y_offset
 
 def find_envelope(signal):
     analytic_signal = hilbert(signal)
     amplitude_envelope = np.abs(analytic_signal)
     return amplitude_envelope
+
+
 
 
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
@@ -376,11 +440,10 @@ def OpenBinFile():
     #Using try in case user types in unknown file or closes without choosing a file.
     try:
         with open(name,'rb') as OpenedFile:
-            signal_matrices, roll_r = processBinFile(OpenedFile)
-            norm_signal_matrices = take_3D_norm(signal_matrices)
-            trigger_map = calculate_trigger_map(norm_signal_matrices)
-#            trigger_map.dump("data_trigger_map_" + name[-19:-4]  - ".bin")
-#            signal_matrices.dump("data_NormSignal_matrices_" + name[-19:-4]  - ".bin")
+            SIGNAL_MATRICES, ROLL_R = processBinFile(OpenedFile)
+            NORM_SIGNAL_MATRICES = take_3D_norm(SIGNAL_MATRICES)
+#            TRIGGER_MAP.dump("data_trigger_map_" + name[-19:-4]  - ".bin")
+#            SIGNAL_MATRICES.dump("data_NormSignal_matrices_" + name[-19:-4]  - ".bin")
 #            roll_r.dump("roll_r_" + name[-19:-4] - ".bin")
             print("Done")
     except:
@@ -500,89 +563,244 @@ The start Page:
 """        
 class StartPage(tk.Frame):
 
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.initVariable(parent, controller)
+        self.createWidgets(parent, controller)
+
+    def initVariable(self, parent, controller):
+        self.InputFolderPath =  tk.StringVar() 
+        self.InputFolderPath.set(InputFolderPath_G)
+        self.OutputFolderPath = tk.StringVar()
+        self.OutputFolderPath.set(OutputFolderPath_G)    
+
+
+    def createWidgets(self, parent, controller):
+        # add text to window 
+        label = tk.Label(self, text="""BlueNose Sound Signal Analyzer App, Version 1.0.1""", font=LARGE_FONT)
+        label.grid(row=0, column=0, columnspan = 7, padx=10, pady=10, sticky='EW') 
+        ttk.Separator(self, orient= 'horizontal').grid(row = 1, column = 0, columnspan = 7, sticky="ew",  padx=10, pady=10)
+        tk.Label(self, text = "Single Bin File Analysis: ").grid(row = 2, column = 0, padx = 10 , pady = 10)
+        tk.Label(self, text = "Folder Path").grid(row = 3, column = 0, padx = 10 , pady = 10)
+        tk.Label(self, text = "Saving Path").grid(row = 4, column = 0, padx = 10 , pady = 10)
+        tk.Label(self, text = "One Min Matrix File").grid(row = 5, column = 0, padx = 10 , pady = 10)
+        
+        # Single Bin File Analysis
+        ttk.Button(self, text="Calliper & Movement Examine", command = lambda: controller.show_frame(CalliperPage)).grid(row = 2, column = 1, padx = 10 , pady = 10)
+        ttk.Button(self, text="Single Channel Dashboard", command =lambda: controller.show_frame(TimeDashBoard)).grid(row = 2, column = 2, padx = 10 , pady = 10)   
+        ttk.Button(self, text="MultiChannel Dashboard", command =showdialog).grid(row = 2, column = 3, padx = 10 , pady = 10)
+
+        # Processing Folder
+        tk.Entry( self, textvariable = self.InputFolderPath , width = 65).grid(row=3, column=1, padx=10, pady=10)
+        tk.Entry( self, textvariable = self.OutputFolderPath,  width = 65 ).grid(row=4, column=1, padx=10, pady=10)
+        ttk.Button(self, text="Processing Folder", command = showdialog).grid(row = 3, column = 2, rowspan = 2, padx = 10 , pady = 10)
+
+        # Multiple Bin File Analysis
+        ttk.Button(self, text="Project Settings", command =showdialog).grid(row = 5, column = 1, padx = 10 , pady = 10)
+        ttk.Button(self, text="Dashboard", command =showdialog).grid(row = 5, column = 2, padx = 10 , pady = 10)   
+        ttk.Button(self, text="Tests", command =showdialog).grid(row = 5, column = 3, padx = 10 , pady = 10)        
+        
+        ttk.Button(self, text="Calliper & Movement",
+                            command=lambda: controller.show_frame(CalliperPage)).grid(row = 6, column = 0, padx = 10 , pady = 10)
+        
+        ttk.Button(self, text="Signal & Details",
+                            command=lambda: controller.show_frame(SignalDetailPage)).grid(row = 6, column =1, padx = 10 , pady = 10)
+        
+        ttk.Button(self, text="Thickness & Energy Analysis",
+                            command=lambda: controller.show_frame(GraphMainPage)).grid(row = 6, column = 2, padx = 10 , pady = 10)
+        
+        ttk.Button(self, text="Dashboard",
+                            command=lambda: controller.show_frame(TimeDashBoard)).grid(row = 6, column = 3, padx = 10 , pady = 10)
+
+class SettingInterface:
+    """
+    This interface make the settings in each Page coherent
+    """
+    def __init__(self):
+        self.trLayout_sel_G = 0
+        
+    #def update(self):
+
+setting_interface = SettingInterface()
+
+
+class CalliperPage(tk.Frame):
     
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        # add text to window 
-        label = tk.Label(self, text="""BlueNose Sound Signal Analyzer App, Version 0.0.1""", font=LARGE_FONT)
-        label.pack(pady=10,padx=10) # adding paddings around to look neat
-        # Define Button here
-        button_cal = ttk.Button(self, text="Calliper & Movement",
-                            command=lambda: controller.show_frame(CalliperPage))
-        button_cal.pack()          
-
-        button_sig = ttk.Button(self, text="Signal & Details",
-                            command=lambda: controller.show_frame(SignalDetailPage))
-        button_sig.pack()   
-        
-        button = ttk.Button(self, text="Thickness & Energy Analysis",
-                            command=lambda: controller.show_frame(GraphMainPage))
-        button.pack()
-      
-        ttk.Button(self, text="Dashboard",
-                            command=lambda: controller.show_frame(TimeDashBoard)).pack()
-
-
-#        button_graph = ttk.Button(self, text="Go to Graph Page",
-#                            command=lambda: controller.show_frame(PageThree))
-#        button_graph.pack()
-
-class CalliperPage(tk.Frame):
-
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
+        self.initVariable(parent, controller, setting_interface)     
+        self.createPlots(parent, controller)   
         self.createWidgets(parent, controller)
-        
+         
+        cid = self.canvas_calliper_plot.mpl_connect('button_press_event', self.onclick_caliper)   
+    def initVariable(self, parent, controller, interface):
+        self.trLayout = tk.StringVar()
+        self.trLayout.set(str(TR_LAYOUT[setting_interface.trLayout_sel_G]))
+        self.channel_no = tk.IntVar()
+        self.round_no = tk.IntVar()
+        self.channel_no.set(0)
+        self.round_no.set(0)
+        self.start_delay = tk.IntVar()
+        self.start_delay.set(6601)
+
     def createWidgets(self, parent, controller):
-        # add text to window 
-        label = tk.Label(self, text="Calliper & Movement Scan", font=LARGE_FONT).grid(row=0, column = 0)
-        #---------------------Variable Pact------------------------------------
-        delay = tk.StringVar() 
-        matrix_size1 = tk.StringVar() 
-        matrix_size2 = tk.StringVar() 
-        matrix_size3 = tk.StringVar()
-        #--------------------Configuration and Display-------------------------
-        label_delay = tk.Label(self, text="START DELAY", font=NORM_FONT).grid(row=1, column=0, padx=10, pady=10, sticky='W')
-        label_matrix_size = tk.Label(self, text="MATRICES SIZE", font=NORM_FONT).grid(row=2, column=0,  padx=10, pady=10, sticky='W')
-        entry_delay = tk.Entry( self, textvariable = delay  ).grid(row=1, column=1, columnspan=3, padx=10, pady=10)
-        entry_matrix_size1 = tk.Entry( self, textvariable = matrix_size1 ).grid(row=2, column=1, padx=10, pady=10)
-        entry_matrix_size2 = tk.Entry( self, textvariable = matrix_size2 ).grid(row=2, column=2, padx=10, pady=10)
-        entry_matrix_size3 = tk.Entry( self, textvariable = matrix_size3 ).grid(row=2, column=3, padx=10, pady=10)
-        matrix_size1.set(str(MATRICES_SIZE[0]))
-        matrix_size2.set(str(MATRICES_SIZE[1]))
-        matrix_size3.set(str(MATRICES_SIZE[2]))
-        delay.set(str(START_DELAY))   
-        #-------------
-        calliper_plot=Figure()
-        calliper_plot_ax = calliper_plot.add_subplot(111)        
-        canvas_trigger = FigureCanvasTkAgg(calliper_plot, self)
-        canvas_trigger._tkcanvas.grid(row=3, columnspan = 4, padx=10, pady=10)
-        canvas_trigger.show()        
-        self.button_refresh= ttk.Button(self, text="Refresh",
-                            command=lambda: self.plot_callback(canvas_trigger, calliper_plot_ax))
-        self.button_refresh.grid(row=0, column = 1)
-        # ------------------HONRIZONTAL RULE---------------------------
-        ttk.Separator(self, orient= 'horizontal').grid(row = 4, column = 0, columnspan = 4, sticky="ew",  padx=10, pady=10)
-        ttk.Button(self, text="<-- Back to Home",
-                            command=lambda: controller.show_frame(StartPage)).grid(row=5, column = 0, padx=10, pady=10)
-
-        ttk.Button(self, text="Signal Detail -->",
-                            command=lambda: controller.show_frame(SignalDetailPage)).grid(row=5, column = 1, padx=10, pady=10)
-
-        ttk.Button(self, text="Thickness -->",
-                            command=lambda: controller.show_frame(GraphMainPage)).grid(row=5, column = 2, padx=10, pady=10)
+        tk.Label(self, text= """Calliper & Positioning Dashboard""", font=LARGE_FONT).grid(row=0, column=0, columnspan = 7, padx=10, pady=10, sticky='EW')
+        ttk.Separator(self, orient= 'horizontal').grid(row = 1, column = 0, columnspan = 8, sticky="ew",  padx=10, pady=10)
+        tk.Label(self, text = "TrLayout").grid(row = 2, column = 0, padx = 10 , pady = 10)
+        tr_layout_box = ttk.Combobox(self, textvariable = self.trLayout, width = 35, values = (str(LAYOUT1), str(LAYOUT2), str(LAYOUT3)) ) 
+                                     #, postcommand = self.updtcblist(self, interface))
+                                                                            
+        tr_layout_box.grid(row = 2, column = 1, padx = 10 , pady = 10) #初始化  
+        #trLayout_sel_G = tr_layout_box.current()
         
-    def plot_callback(self,canvas,ax):
-#        c = ['r','b','g']  # plot marker colors
+        
+        tk.Label(self, text = "Channel").grid(row = 3, column = 0, padx = 10 , pady = 10)
+        tk.Label(self, text = "Round").grid(row = 5, column = 0, padx = 10, pady = 10)
+        tk.Entry( self, textvariable = self.channel_no ).grid(row=3, column=1, padx=10, pady=10)
+        tk.Entry( self, textvariable = self.round_no ).grid(row=5, column=1, padx=10, pady=10)
+        button_fw_chn = ttk.Button(self, text=">", command = lambda: self.chn_forward_callback(self.canvas_signal_plot, 
+                                                                                         self.signal_plot_ax, 
+                                                                                         self.canvas_offset_plot,
+                                                                                         self.offset_plot_ax))
+        button_fw_chn.grid(row = 4, column = 1, padx = 10 , pady = 10)
+        button_fw_rd = ttk.Button(self, text=">", command = lambda: self.rd_forward_callback(self.canvas_signal_plot, 
+                                                                                         self.signal_plot_ax, 
+                                                                                         self.canvas_offset_plot,
+                                                                                         self.offset_plot_ax))  
+        button_fw_rd.grid(row = 6, column = 1, padx = 10 , pady = 10)        
+
+        button_bw_chn = ttk.Button(self, text="<", command = lambda: self.chn_backward_callback(self.canvas_signal_plot, 
+                                                                                         self.signal_plot_ax, 
+                                                                                         self.canvas_offset_plot,
+                                                                                         self.offset_plot_ax))  
+        button_bw_chn.grid(row = 4, column = 0, padx = 10 , pady = 10)
+        button_bw_rd = ttk.Button(self, text="<", command = lambda: self.rd_backward_callback(self.canvas_signal_plot, 
+                                                                                         self.signal_plot_ax, 
+                                                                                         self.canvas_offset_plot,
+                                                                                         self.offset_plot_ax))  
+        button_bw_rd.grid(row = 6, column = 0, padx = 10 , pady = 10)                
+        
+        tk.Label(self, text = "Start Delay", font = NORM_FONT).grid(row = 8, column = 0, padx = 10, pady = 10) 
+        tk.Entry( self, textvariable = self.start_delay ).grid(row=8, column=1, padx=10, pady=10)
+        ttk.Button(self, text="Signal Plot", command = lambda: self.signal_plot_callback(self.canvas_signal_plot, 
+                                                                                         self.signal_plot_ax, 
+                                                                                         self.canvas_offset_plot,
+                                                                                         self.offset_plot_ax
+                                                                                         )).grid(row = 9, column = 0, columnspan = 2, rowspan = 1, padx = 10, pady = 10)
+        ttk.Button(self, text="Filtered Calliper Map Plot", command =lambda: self.calliper_plot_callback(self.canvas_calliper_plot, 
+                                                                                                         self.calliper_plot_ax)).grid(row = 10, column = 0, columnspan = 2, rowspan = 1, padx = 10, pady = 10)
+        ttk.Button(self, text="Save Map").grid(row = 13, column = 0, columnspan = 2, rowspan = 1, padx = 10, pady = 10)
+        ttk.Button(self, text="Return To Home", 
+                   command = lambda: controller.show_frame(StartPage)).grid(row = 14, column = 0, columnspan = 1, rowspan = 1, padx = 10, pady = 10)
+        ttk.Button(self, text="Signal Channel Dashboard", 
+                   command = lambda: controller.show_frame(TimeDashBoard)).grid(row = 14, column = 1, columnspan = 1, rowspan = 1, padx = 10, pady = 10)
+        
+        
+    
+    def createPlots(self, parent, controller):
+        signal_plot = Figure(figsize = (4,3))
+        self.signal_plot_ax = signal_plot.add_subplot(111)        
+        self.canvas_signal_plot = FigureCanvasTkAgg(signal_plot, self)
+        self.canvas_signal_plot._tkcanvas.grid(row=2, column = 2, padx=0, pady=0 , columnspan = 3, rowspan = 4)
+        self.canvas_signal_plot.show()     
+
+        offset_plot = Figure(figsize = (4,3))
+        self.offset_plot_ax = offset_plot.add_subplot(111)        
+        self.canvas_offset_plot = FigureCanvasTkAgg(offset_plot, self)
+        self.canvas_offset_plot._tkcanvas.grid(row=2, column = 5, padx=0, pady=0 , columnspan = 3, rowspan = 4)
+        self.canvas_offset_plot.show()          
+        
+        calliper_plot = Figure(figsize = (8,4))
+        self.calliper_plot_ax = calliper_plot.add_subplot(111)        
+        self.canvas_calliper_plot = FigureCanvasTkAgg(calliper_plot, self)
+        self.canvas_calliper_plot._tkcanvas.grid(row=6, column = 2, padx=0, pady=10 , columnspan = 8, rowspan = 4)
+        self.canvas_calliper_plot.show()            
+
+        
+    def calliper_plot_callback(self,canvas,ax):
+        TRIGGER_MAP = calculate_trigger_map(NORM_SIGNAL_MATRICES)
+        TRIGGER_MAP = median_filter_2D(TRIGGER_MAP, 2)
+        CALLIPER_MAP = calculate_calliper(TRIGGER_MAP)
+        transducer_tdc = processRoll_r (ROLL_R)
+        #
         ax.clear()
-        ax.imshow(trigger_map, aspect = 'auto',interpolation='none')
+        ax.imshow(CALLIPER_MAP, aspect = 'auto',interpolation='none')
+        ax.plot(transducer_tdc, 'r')
         canvas.draw()
-#        for i in range(3):
-#            theta = np.random.uniform(0,360,10)
-#            r = np.random.uniform(0,1,10)
-#            ax.plot(theta,r,linestyle="None",marker='o', color=c[i])
-#            canvas.draw()
+
+    def signal_plot_callback(self, signal_canvas, signal_ax, position_canvas, position_ax):       
+        c = ['r','b','g','k']  # plot marker colors
+        rd, chn, start_delay, trLayout = self.get_info_from_self()
+        signal_to_plot = NORM_SIGNAL_MATRICES[chn, rd, :]
+        signal_ax.clear()
+        position_ax.clear()
+        signal_ax.plot(signal_to_plot, color=c[3])
+        signal_ax.set_title('Full Signal Plot')
+        theta = np.arange(0, 2*np.pi, 0.01)
+        x = 0 + 0.9144 * np.cos(theta)
+        y = 0 + 0.9144 * np.sin(theta)
+        transducer_tdc = processRoll_r (ROLL_R)
+        x_offset , y_offset = find_offset(transducer_tdc, chn, rd, CALLIPER_MAP)
+        position_ax.plot(x, y)
+        position_ax.plot(x_offset,y_offset,'ro',label="point")
+        position_ax.axis('equal')
+        position_ax.set_title('Offset Plot')
+        position_ax.text(-1, 0.8, 'x offset =' +  "{0:.3f}%".format(x_offset*100) +';\n'+'y_offset = ' +  "{0:.3f}%".format(y_offset*100) , fontsize=10)
         
+        signal_canvas.draw()
+        position_canvas.draw()
+        return
+    
+    
+    def onclick_caliper(self, event):
+        """
+        onclick event for binding with canvas class
+        """
+        time_point = int(event.xdata)
+        chn = int(event.ydata)  
+        self.round_no.set(str(time_point))
+        self.channel_no.set(str(chn))
+        self.signal_plot_callback(self.canvas_signal_plot, self.signal_plot_ax, self.canvas_offset_plot,  self.offset_plot_ax)      
+        
+        print('%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+              ('double' if event.dblclick else 'single', event.button,
+               event.x, event.y, time_point, chn))        
+            
+    
+    def get_info_from_self(self):
+        rd = self.round_no.get()
+        chn = self.channel_no.get()
+        start_delay = self.start_delay.get()
+        trLayout = list(self.trLayout.get())
+        
+        return rd, chn, start_delay, trLayout
+
+    def chn_forward_callback(self, signal_canvas, signal_ax, position_canvas, position_ax):
+        rd, chn, start_delay, trLayout = self.get_info_from_self()
+        chn = (chn + 1) % MATRICES_SIZE[0]
+        self.channel_no.set(chn)
+        self.signal_plot_callback(signal_canvas, signal_ax, position_canvas, position_ax)
+        
+    def chn_backward_callback(self, signal_canvas, signal_ax, position_canvas, position_ax):
+        rd, chn, start_delay, trLayout = self.get_info_from_self()
+        chn = (chn - 1) % MATRICES_SIZE[0]
+        self.channel_no.set(chn)
+        self.signal_plot_callback(signal_canvas, signal_ax, position_canvas, position_ax)        
+        
+    def rd_forward_callback(self, signal_canvas, signal_ax, position_canvas, position_ax):
+        rd, chn, start_delay, trLayout = self.get_info_from_self()
+        rd = (rd + 1) % MATRICES_SIZE[1]
+        self.round_no.set(rd)
+        self.signal_plot_callback(signal_canvas, signal_ax, position_canvas, position_ax)
+        
+    def rd_backward_callback(self, signal_canvas, signal_ax, position_canvas, position_ax):
+        rd, chn, start_delay, trLayout = self.get_info_from_self()
+        rd = (rd - 1) % MATRICES_SIZE[1]
+        self.round_no.set(rd)
+        self.signal_plot_callback(signal_canvas, signal_ax, position_canvas, position_ax)      
+
+
+
 
 class SignalDetailPage(tk.Frame):
     
@@ -646,13 +864,15 @@ class SignalDetailPage(tk.Frame):
         chn = int(self.chn_no.get())
         mph = float(self.mph.get())
         mpd = int(self.mpd.get())
-        signal_plot = norm_signal_matrices[chn, rd, :]
+        signal_plot = NORM_SIGNAL_MATRICES[chn, rd, :]
         ax1.plot(signal_plot, color=c[0])
         detect_peaks(signal_plot, mph=mph, mpd=mpd, edge='rising', show=True, ax=ax2)
         ax3.plot(np.convolve(signal_plot, S), color=c[0])
-        detect_peaks(np.convolve(signal_plot, S), mph=mph, mpd=mpd, edge='rising', show=True, ax=ax4)
-        
+        detect_peaks(np.convolve(signal_plot, S), mph=mph, mpd=mpd, edge='rising', show=True, ax=ax4)   
         canvas.draw()
+        
+
+        
 
            
 class GraphMainPage(tk.Frame):
@@ -693,15 +913,15 @@ class GraphMainPage(tk.Frame):
         c = ['r','b','g']  # plot marker colors
         ax1.clear()
         ax2.clear()
-        signal_plot = norm_signal_matrices[0, 0, :]
-        shape = (norm_signal_matrices[0, 250:1000]).astype(float)
+        signal_plot = NORM_SIGNAL_MATRICES[0, 0, :]
+        shape = (NORM_SIGNAL_MATRICES[0, 250:1000]).astype(float)
         ax1.plot(signal_plot, color=c[0])
         ax2.imshow(shape.transpose(), aspect = 'auto',interpolation='none')
         canvas.draw()
         
     def thickness_update(self, canvas, ax):
         ax.clear()
-        thickness_map = Thickness_map_TIME(norm_signal_matrices)
+        thickness_map = Thickness_map_TIME(NORM_SIGNAL_MATRICES)
         ax.imshow(thickness_map, aspect = 'auto',interpolation='none')
         canvas.draw()        
 
@@ -893,7 +1113,7 @@ class TimeDashBoard(tk.Frame):
     def refresh_signal_callback(self,canvas1, ax1, canvas2, ax2, canvas3, ax3, canvas4, ax4):
         c = ['r','b','g','k']  # plot marker colors
         rd, chn, mph, mpd = self.get_info_from_self()
-        signal_to_plot = norm_signal_matrices[chn, rd, :]
+        signal_to_plot = NORM_SIGNAL_MATRICES[chn, rd, :]
         first_index_to_come = min(np.argmax(signal_to_plot), np.argmin(signal_to_plot))
         if (first_index_to_come > 200) and (first_index_to_come < 1400):
             signal_slice_to_plot = signal_to_plot[first_index_to_come - 200 : first_index_to_come + 600]
@@ -946,7 +1166,7 @@ class TimeDashBoard(tk.Frame):
         low_margin = int(self.low_margin.get())
         high_margin = int(self.high_margin.get())
         ax5.clear()
-        shape = (norm_signal_matrices[chn, :, low_margin:high_margin]).astype(float)
+        shape = (NORM_SIGNAL_MATRICES[chn, :, low_margin:high_margin]).astype(float)
         ax5.imshow(shape.transpose(), aspect = 'auto',interpolation='none', cmap = plt.cm.jet)
         ax5.vlines(rd, low_margin, high_margin, colors = "c", linestyles = "dashed")
         canvas5.draw()         
@@ -985,7 +1205,7 @@ class TimeDashBoard(tk.Frame):
   
     def thickness_update(self, canvas, ax):
         ax.clear()
-        thickness_map = Thickness_map_TIME(norm_signal_matrices)
+        thickness_map = Thickness_map_TIME(NORM_SIGNAL_MATRICES)
         ax.imshow(thickness_map, aspect = 'auto',interpolation='none')
         canvas.draw()        
 
