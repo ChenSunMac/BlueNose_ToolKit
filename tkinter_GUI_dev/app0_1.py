@@ -530,7 +530,7 @@ class BlueNoseApp(tk.Tk):
         self.frames = {}
         
         #for F in (StartPage, PageOne, PageThree):
-        for F in (StartPage, SignalDetailPage ,GraphMainPage, CalliperPage, TimeDashBoard):
+        for F in (StartPage, SignalDetailPage ,GraphMainPage, CalliperPage, TimeDashBoard, EnergyPage):
             frame = F(container, self)
 
             self.frames[F] = frame
@@ -611,7 +611,7 @@ class BlueNoseApp(tk.Tk):
         ttk.Button(frame, width=20, image=self.img6, command=showdialog).grid(row=0, column=5, padx=1, pady=1, sticky=tk.E)
         ttk.Button(frame, width=20, image=self.img7, command=showdialog).grid(row=0, column=6, padx=1, pady=1, sticky=tk.E)
         ttk.Button(frame, width=20, image=self.img7, command=showdialog).grid(row=0, column=6, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20, image=self.img8, command=showdialog).grid(row=0, column=8, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img8, command=lambda: self.show_frame(EnergyPage)).grid(row=0, column=8, padx=1, pady=1, sticky=tk.E)
         ttk.Button(frame, width=20, image=self.img0, command=lambda: self.show_frame(StartPage)).grid(row=0, column=7, padx=1, pady=1, sticky=tk.E)
         frame.pack(side=tk.LEFT)
         toolframe.pack(fill=tk.X)
@@ -1344,6 +1344,53 @@ class TimeDashBoard(tk.Frame):
               ('double' if event.dblclick else 'single', event.button,
                event.x, event.y, time_point, chn))        
 
+
+class EnergyPage(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self.initVariable(parent, controller)
+        self.createWidgets(parent, controller)
+        self.set_control_panel(parent, controller)
+        
+    def initVariable(self, parent, controller):
+        return
+#        layout of the transducers
+#        focus channels
+#
+#        metal velocity
+#
+#        coating velocity
+    def createWidgets(self, parent, controller):
+        return
+    
+    def set_control_panel(self, parent, controller):
+        toolframe = tk.Frame(self, height=20, bg='#F7EED6')#, relief=tk.RAISED)
+        frame = tk.Frame(toolframe, bg='#F7EED6')
+        ttk.Button(frame, width=20, command=OpenBinFile).grid(row=0, column=0, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20,  command=lambda: self.show_frame(CalliperPage)).grid(row=0, column=1, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20,  command=lambda: self.show_frame(TimeDashBoard)).grid(row=0, column=2, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20,  command=showdialog).grid(row=0, column=3, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, command=showdialog).grid(row=0, column=4, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20,  command=showdialog).grid(row=0, column=5, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, command=showdialog).grid(row=0, column=6, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20,  command=showdialog).grid(row=0, column=6, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20,  command=lambda: self.show_frame(EnergyPage)).grid(row=0, column=8, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20,  command=lambda: self.show_frame(StartPage)).grid(row=0, column=7, padx=1, pady=1, sticky=tk.E)
+        frame.pack(side=tk.LEFT)
+        toolframe.pack(fill=tk.X)
+        
+#    	control_frame = tk.Frame(self, ...) # toolframe = tk.Frame(self, height=20, bg='#F7EED6')#, relief=tk.RAISED)
+#
+#    	button
+#
+#    	entry
+#
+#    	control_frame.pack(side = tk.TOP)
+
+
+    def set_plot_panel(self, parent, controller):
+    	return
      
 app = BlueNoseApp()
 #ani = animation.FuncAnimation(f, animate, interval=10000)
