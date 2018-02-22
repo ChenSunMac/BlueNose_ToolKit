@@ -11,6 +11,8 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 
 import numpy as np
+import glob
+
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 import matplotlib
@@ -22,6 +24,7 @@ import pickle
 from scipy.signal import hilbert
 import scipy.signal
 import os
+
 
 INITIAL_DIR_TEST = os.getcwd()
 ## GLOBAL VARIABLE
@@ -35,21 +38,27 @@ NORM_FONT = ("Helvetica", 10)
 SMALL_FONT = ("Helvetica", 8)
 
 #-----------------------DATA PROCESSING-- Configurations--------------------
-trLayout = [1, 33, 17, 29, 13, 93, 49, 81, 65, 77, 61, 21, 25, 9, 41, 5, 37,
+trLayout_bluenose = [1, 33, 17, 29, 13, 93, 49, 81, 65, 77, 61, 21, 25, 9, 41, 5, 37,
             69, 73, 57, 89, 53, 85, 45, 2, 34, 18, 30, 14, 94, 50, 82, 66, 78,
             62, 22, 26, 10, 42, 6, 38, 70, 74, 58, 90, 54, 86, 46, 3, 35, 19, 
             31, 15, 95, 51, 83, 67, 79, 63, 23, 27, 11, 43, 7, 39, 71, 75, 59,
             91, 55, 87, 47, 4, 36, 20, 32, 16, 96, 52, 84, 68, 80, 64, 24, 28,
             12, 44, 8, 40, 72, 76, 60, 92, 56, 88, 48]
 
+trLayout_fraudhover = [1,17,13, 33, 5 ,93, 49, 65, 61, 81, 77, 21, 25, 41, 37, 9,29 , 69, 73, 89, 85, 57,
+ 53, 45, 2 ,18, 14, 34, 6 ,94, 50, 66, 62, 82, 78 ,22, 26, 42, 38, 10, 30, 70, 74,
+ 90, 86, 58, 54, 46, 3, 19, 15, 35, 7 ,95, 51, 67, 63, 83, 79, 23, 27 ,43, 39, 11,
+ 31, 71, 75, 91, 87, 59, 55, 47 ,4 ,20, 16, 36, 8 ,96, 52, 68, 64, 84, 80, 24, 28,
+ 44 ,40, 12, 32, 72, 76, 92, 88, 60, 56, 48]
+
 trLayout = np.linspace(1, 96, 96, dtype = 'uint')
 trLayout =  np.asarray(trLayout) - 1
 LAYOUT1 = trLayout
 #trLayout = np.linspace(1, 96, 96, dtype = 'uint')
-LAYOUT2 =  np.asarray(trLayout) - 1
-LAYOUT3 = LAYOUT2
+LAYOUT2 =  np.asarray(trLayout_bluenose) - 1
+LAYOUT3 = np.asarray(trLayout_fraudhover) - 1
 TR_LAYOUT = (LAYOUT1, LAYOUT2, LAYOUT3)
-
+TR_LAYOUT_NAME = ('NORMAL', 'BLUENOSE' , 'FraudHover')
 
 S = [-0.0729,   -0.2975,   -0.2346 ,   0.1057   , 0.8121  ,  0.5721  , -0.4512,   
      -0.7820  , -0.5137    , 0.4829    ,0.8867 ,  -0.0891 ,  -0.4474  ,-0.0875 ,   0.2159]
@@ -94,6 +103,47 @@ f = Figure()
 signal_plot = f.add_subplot(221)
 time_energy_plot = f.add_subplot(222)
 thinkness_plot = f.add_subplot(212)
+
+
+def Dir_Parser(test_path):
+    """
+    Input: 
+        @ test_path: a string containing the path of the directory
+    Return: 
+        @ file_map: a dictionary with the one min files
+            key is the bnYearMonthDate-HourMin
+            item is a list containing the file names in that min
+    """
+    if os.path.exists(test_path):
+        os.chdir(test_path)
+        currentPath = os.getcwd()
+        print(currentPath)
+    
+    ## Filter .bin file and sort based on name
+    file_list =  glob.glob('*.bin')
+    file_list.sort()
+    first_min = file_list[0][9:13]
+    last_min = file_list[-1][9:13]
+    
+    ## Construct a dictionary for mapping mins of data 
+    file_map = dict()
+    for file in  file_list:
+        if file[:-6] in file_map:
+            pass
+        else:
+            bn_YMDHM = file[:-6]
+            file_map[bn_YMDHM] = [f for f in file_list if f.startswith(bn_YMDHM)]   
+            
+    if len(file_map) > 1:
+        sorted_key_list = sorted(file_map.keys())
+        for key, index in  zip(sorted_key_list, range(len(sorted_key_list))):
+            if key[9:13] < last_min:
+                file_map[key].append(file_map[sorted_key_list[index + 1]][0])
+            if key[9:13] > first_min: 
+                file_map[key].insert(0,file_map[sorted_key_list[index - 1]][-1])
+    print(file_map)            
+    return file_map
+
 
 
 def processBinFile(OpenedFile):
@@ -161,7 +211,7 @@ def take_3D_norm(signal_matrices):
             NORM_SIGNAL_MATRICES[chn, rd, :] = norm_signal
     return NORM_SIGNAL_MATRICES
 
-def calculate_trigger_map(norm_matrices):
+def calculate_trigger_map(norm_matrices, trLayout = trLayout):
     """
     Calculate the trigger_map/calliper map from normalized 3-D matrix
     @input: normalized 3-D matrix
@@ -482,6 +532,7 @@ class BlueNoseApp(tk.Tk):
         #for F in (StartPage, PageOne, PageThree):
         for F in (StartPage, SignalDetailPage ,GraphMainPage, CalliperPage, TimeDashBoard):
             frame = F(container, self)
+
             self.frames[F] = frame
             
             frame.grid(row=0, column=0, sticky="nsew")
@@ -537,19 +588,31 @@ class BlueNoseApp(tk.Tk):
         
     # 生成所有需要的图标
     def createICO(self):
-        #image_pil = Image.open('binary_ico.png').resize(16, 16)
-        self.img1 = ImageTk.PhotoImage(Image.open('binary_file_icon.png'))
-        self.img2 = ImageTk.PhotoImage(Image.open('ico_home.jpg'))
-        self.img3 = ImageTk.PhotoImage(Image.open('ico_home.jpg'))
-        self.img4 = ImageTk.PhotoImage(Image.open('ico_home.jpg'))
-    
+
+        self.img0 = ImageTk.PhotoImage(Image.open('images/home.png'))
+        self.img1 = ImageTk.PhotoImage(Image.open('images/binfile_ico.png'))
+        self.img2 = ImageTk.PhotoImage(Image.open('images/caliper.png'))
+        self.img3 = ImageTk.PhotoImage(Image.open('images/audio-wave.png'))
+        self.img4 = ImageTk.PhotoImage(Image.open('images/save.png'))
+        self.img5 = ImageTk.PhotoImage(Image.open('images/newspaper.png'))
+        self.img6 = ImageTk.PhotoImage(Image.open('images/open-folder-with-document.png'))
+        self.img7 = ImageTk.PhotoImage(Image.open('images/settings.png'))
+        self.img8 = ImageTk.PhotoImage(Image.open('images/dashboard.png'))
+
     # 生成工具条
     def createToolbar(self):
         toolframe = tk.Frame(self, height=20, bg='#F7EED6')#, relief=tk.RAISED)
         frame = tk.Frame(toolframe, bg='#F7EED6')
         ttk.Button(frame, width=20, image=self.img1, command=OpenBinFile).grid(row=0, column=0, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20, image=self.img2, command=showdialog).grid(row=0, column=1, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20, image=self.img3, command=showdialog).grid(row=0, column=2, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img2, command=lambda: self.show_frame(CalliperPage)).grid(row=0, column=1, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img3, command=lambda: self.show_frame(TimeDashBoard)).grid(row=0, column=2, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img4, command=showdialog).grid(row=0, column=3, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img5, command=showdialog).grid(row=0, column=4, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img6, command=showdialog).grid(row=0, column=5, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img7, command=showdialog).grid(row=0, column=6, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img7, command=showdialog).grid(row=0, column=6, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img8, command=showdialog).grid(row=0, column=8, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=20, image=self.img0, command=lambda: self.show_frame(StartPage)).grid(row=0, column=7, padx=1, pady=1, sticky=tk.E)
         frame.pack(side=tk.LEFT)
         toolframe.pack(fill=tk.X)
         
@@ -593,7 +656,7 @@ class StartPage(tk.Frame):
         # Processing Folder
         tk.Entry( self, textvariable = self.InputFolderPath , width = 65).grid(row=3, column=1, padx=10, pady=10)
         tk.Entry( self, textvariable = self.OutputFolderPath,  width = 65 ).grid(row=4, column=1, padx=10, pady=10)
-        ttk.Button(self, text="Processing Folder", command = showdialog).grid(row = 3, column = 2, rowspan = 2, padx = 10 , pady = 10)
+        ttk.Button(self, text="Processing Folder", command = lambda: self.processing_folder(self.InputFolderPath.get())).grid(row = 3, column = 2, rowspan = 2, padx = 10 , pady = 10)
 
         # Multiple Bin File Analysis
         ttk.Button(self, text="Project Settings", command =showdialog).grid(row = 5, column = 1, padx = 10 , pady = 10)
@@ -611,6 +674,24 @@ class StartPage(tk.Frame):
         
         ttk.Button(self, text="Dashboard",
                             command=lambda: controller.show_frame(TimeDashBoard)).grid(row = 6, column = 3, padx = 10 , pady = 10)
+        
+        
+    def processing_folder(self, path):
+        file_map = Dir_Parser(path)
+        for minute_key, minute_file_list in file_map.items():
+            file_num = len(minute_file_list)
+            total_signal_matrices = np.empty((MATRICES_SIZE[0], MATRICES_SIZE[1] * file_num, MATRICES_SIZE[2]), dtype = 'float16')
+            total_roll_r = np.zeros(( 260 * file_num , 1 ), dtype=np.uint16)
+            index = 0
+            for item in minute_file_list:
+                with open(item, "rb") as bin_file:
+                    total_signal_matrices[:, index*MATRICES_SIZE[1] : (index + 1)*MATRICES_SIZE[1], :], total_roll_r[index * 260 : (index + 1) * 260, :] = processBinFile(bin_file)
+                    index = index + 1
+            np.save(self.OutputFolderPath.get() + '/' + minute_key + '-signal', total_signal_matrices)
+            np.save(self.OutputFolderPath.get() + '/' + minute_key + '-roll', total_roll_r)
+        print("Finshied Stacking minute files")
+        return
+                    
 
 class SettingInterface:
     """
@@ -628,14 +709,20 @@ class CalliperPage(tk.Frame):
     
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
-        self.initVariable(parent, controller, setting_interface)     
+        self.initVariable(parent, controller, setting_interface)
         self.createPlots(parent, controller)   
-        self.createWidgets(parent, controller)
-         
+        self.createWidgets(parent, controller) 
+        
+        self.bind("<Key>", self.key)
+        self.bind("<Button-1>", self.click_callback)
+        
         cid = self.canvas_calliper_plot.mpl_connect('button_press_event', self.onclick_caliper)   
+        
     def initVariable(self, parent, controller, interface):
         self.trLayout = tk.StringVar()
-        self.trLayout.set(str(TR_LAYOUT[setting_interface.trLayout_sel_G]))
+        self.trLayout_sel = tk.IntVar()
+        self.trLayout_sel.set(0)
+        self.trLayout.set(  TR_LAYOUT_NAME[0] )
         self.channel_no = tk.IntVar()
         self.round_no = tk.IntVar()
         self.channel_no.set(0)
@@ -647,7 +734,7 @@ class CalliperPage(tk.Frame):
         tk.Label(self, text= """Calliper & Positioning Dashboard""", font=LARGE_FONT).grid(row=0, column=0, columnspan = 7, padx=10, pady=10, sticky='EW')
         ttk.Separator(self, orient= 'horizontal').grid(row = 1, column = 0, columnspan = 8, sticky="ew",  padx=10, pady=10)
         tk.Label(self, text = "TrLayout").grid(row = 2, column = 0, padx = 10 , pady = 10)
-        tr_layout_box = ttk.Combobox(self, textvariable = self.trLayout, width = 35, values = (str(LAYOUT1), str(LAYOUT2), str(LAYOUT3)) ) 
+        tr_layout_box = ttk.Combobox(self, textvariable = self.trLayout, width = 35, values = TR_LAYOUT_NAME ) 
                                      #, postcommand = self.updtcblist(self, interface))
                                                                             
         tr_layout_box.grid(row = 2, column = 1, padx = 10 , pady = 10) #初始化  
@@ -667,6 +754,7 @@ class CalliperPage(tk.Frame):
                                                                                          self.signal_plot_ax, 
                                                                                          self.canvas_offset_plot,
                                                                                          self.offset_plot_ax))  
+
         button_fw_rd.grid(row = 6, column = 1, padx = 10 , pady = 10)        
 
         button_bw_chn = ttk.Button(self, text="<", command = lambda: self.chn_backward_callback(self.canvas_signal_plot, 
@@ -694,9 +782,40 @@ class CalliperPage(tk.Frame):
                    command = lambda: controller.show_frame(StartPage)).grid(row = 14, column = 0, columnspan = 1, rowspan = 1, padx = 10, pady = 10)
         ttk.Button(self, text="Signal Channel Dashboard", 
                    command = lambda: controller.show_frame(TimeDashBoard)).grid(row = 14, column = 1, columnspan = 1, rowspan = 1, padx = 10, pady = 10)
+
+    def key(self, event):
+        """
+        wasd,p
+        """
+        self.focus_set()
+        if event.char == 'd':
+            self.rd_forward_callback(self.canvas_signal_plot, 
+                                self.signal_plot_ax, 
+                                self.canvas_offset_plot,
+                                self.offset_plot_ax)
+        if event.char == 'a':
+            self.rd_backward_callback(self.canvas_signal_plot, 
+                                      self.signal_plot_ax, 
+                                      self.canvas_offset_plot,
+                                      self.offset_plot_ax)
+        if event.char == 'w':
+           self.chn_backward_callback(self.canvas_signal_plot, 
+                                      self.signal_plot_ax, 
+                                      self.canvas_offset_plot,
+                                      self.offset_plot_ax) 
+        if event.char == 's':
+            self.chn_forward_callback(self.canvas_signal_plot, 
+                                      self.signal_plot_ax, 
+                                      self.canvas_offset_plot,
+                                      self.offset_plot_ax)            
+        if event.char == 'p':
+            self.calliper_plot_callback(self.canvas_calliper_plot, 
+                                        self.calliper_plot_ax)
+                
+    def click_callback(self, event):
+        self.focus_set()
+        print ("clicked at", event.x, event.y)
         
-        
-    
     def createPlots(self, parent, controller):
         signal_plot = Figure(figsize = (4,3))
         self.signal_plot_ax = signal_plot.add_subplot(111)        
@@ -718,7 +837,9 @@ class CalliperPage(tk.Frame):
 
         
     def calliper_plot_callback(self,canvas,ax):
-        TRIGGER_MAP = calculate_trigger_map(NORM_SIGNAL_MATRICES)
+        Layout_index = TR_LAYOUT_NAME.index(self.trLayout.get())
+        tr_layout = TR_LAYOUT[Layout_index]
+        TRIGGER_MAP = calculate_trigger_map(NORM_SIGNAL_MATRICES, trLayout = tr_layout)
         TRIGGER_MAP = median_filter_2D(TRIGGER_MAP, 2)
         CALLIPER_MAP = calculate_calliper(TRIGGER_MAP)
         transducer_tdc = processRoll_r (ROLL_R)
