@@ -1354,7 +1354,20 @@ class EnergyPage(tk.Frame):
         self.set_control_panel(parent, controller)
         
     def initVariable(self, parent, controller):
-        return
+        self.trLayout = tk.StringVar()
+        self.trLayout_sel = tk.IntVar()
+        self.trLayout_sel.set(0)
+        self.trLayout.set(  TR_LAYOUT_NAME[0] )        
+        self.channel_no = tk.IntVar()
+        self.channel_no.set(0)
+        self.range_low = tk.IntVar()
+        self.range_high = tk.IntVar()
+        self.range_low.set(0)
+        self.range_high.set(500)
+        self.metal_v = tk.IntVar()
+        self.metal_v.set(5920)
+        self.coating_v = tk.IntVar()
+        self.coating_v.set(3400)
 #        layout of the transducers
 #        focus channels
 #
@@ -1365,21 +1378,90 @@ class EnergyPage(tk.Frame):
         return
     
     def set_control_panel(self, parent, controller):
-        toolframe = tk.Frame(self, height=20, bg='#F7EED6')#, relief=tk.RAISED)
+        toolframe = tk.Frame(self, height=15, bg='#F7EED6')#, relief=tk.RAISED)
         frame = tk.Frame(toolframe, bg='#F7EED6')
-        ttk.Button(frame, width=20, command=OpenBinFile).grid(row=0, column=0, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20,  command=lambda: self.show_frame(CalliperPage)).grid(row=0, column=1, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20,  command=lambda: self.show_frame(TimeDashBoard)).grid(row=0, column=2, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20,  command=showdialog).grid(row=0, column=3, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20, command=showdialog).grid(row=0, column=4, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20,  command=showdialog).grid(row=0, column=5, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20, command=showdialog).grid(row=0, column=6, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20,  command=showdialog).grid(row=0, column=6, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20,  command=lambda: self.show_frame(EnergyPage)).grid(row=0, column=8, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=20,  command=lambda: self.show_frame(StartPage)).grid(row=0, column=7, padx=1, pady=1, sticky=tk.E)
+                         
+                         
+        tk.Label(frame, text="TrLayout", 
+                 font=NORM_FONT).grid(row=0, column=0, padx=1, pady=1, sticky=tk.E)
+        tr_layout_box = ttk.Combobox(frame, textvariable = self.trLayout, width = 10, values = TR_LAYOUT_NAME )
+        
+        tr_layout_box.grid(row=0, column=1, padx=1, pady=1, sticky=tk.E)
+        
+        tk.Label(frame, text= "Metal Velocity (m/s)", font=NORM_FONT).grid(row=0, column=2, padx=1, pady=1, sticky=tk.E)
+        tk.Entry( frame, textvariable = self.metal_v ).grid(row=0, column=3, padx=1, pady=1, sticky=tk.E)
+        tk.Label(frame, text= "Coating Velocity (m/s)", font=NORM_FONT).grid(row=0, column=4, padx=1, pady=1, sticky=tk.E)
+        tk.Entry( frame, textvariable = self.coating_v ).grid(row=0, column=5, padx=1, pady=1, sticky=tk.E)
+        tk.Label(frame, text= "Focus Channel", font=NORM_FONT).grid(row=0, column=6, padx=1, pady=1, sticky=tk.E)
+        tk.Entry( frame, textvariable = self.channel_no ).grid(row=0, column=7, padx=1, pady=1, sticky=tk.E)
+        tk.Label(frame, text= "Time Point Range", font=NORM_FONT).grid(row=0, column=8, padx=1, pady=1, sticky=tk.E)
+        tk.Entry( frame, textvariable = self.range_low ).grid(row=0, column=9, padx=1, pady=1, sticky=tk.E)
+        tk.Entry( frame, textvariable = self.range_high ).grid(row=0, column=10, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=15,text= "Plot Heat Map",  command=showdialog).grid(row=0, column=11, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=15, text= "Plot Energy Map",  command=showdialog).grid(row=0, column=12, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=15, text= "Plot All",  command=showdialog).grid(row=0, column=13, padx=1, pady=1, sticky=tk.E)
         frame.pack(side=tk.LEFT)
         toolframe.pack(fill=tk.X)
         
+        map_frame = tk.Frame(self, height=605, width = 500, bg='#000000')
+        heat_map_frame = tk.Frame(map_frame, bg='#000000')
+        energy_map_frame = tk.Frame(map_frame, bg = "#000000")                          
+        
+        channel_m2_plot = Figure(figsize = (4,2.5))
+        channel_m2_plot_ax =  channel_m2_plot.add_subplot(111)
+        channel_m2_plot_canvas = FigureCanvasTkAgg(channel_m2_plot, heat_map_frame)
+        channel_m2_plot_canvas._tkcanvas.grid(row=0, column = 0, padx=10, pady=10 , columnspan = 4, rowspan = 3)
+        channel_m2_plot_canvas.show()        
+
+        channel_m1_plot = Figure(figsize = (4,2.5))
+        channel_m1_plot_ax =  channel_m1_plot.add_subplot(111)
+        channel_m1_plot_canvas = FigureCanvasTkAgg(channel_m1_plot, heat_map_frame)
+        channel_m1_plot_canvas._tkcanvas.grid(row=0, column = 4, padx=10, pady=10 , columnspan = 4, rowspan = 3)
+        channel_m1_plot_canvas.show()
+#        
+        channel_m0_plot = Figure(figsize = (4,2.5))
+        channel_m0_plot_ax =  channel_m0_plot.add_subplot(111)
+        channel_m0_plot_canvas = FigureCanvasTkAgg(channel_m0_plot, heat_map_frame)
+        channel_m0_plot_canvas._tkcanvas.grid(row=3, column = 0, padx=10, pady=10 , columnspan = 4, rowspan = 3)
+        channel_m0_plot_canvas.show()        
+##
+        channel_a1_plot = Figure(figsize = (4,2.5))
+        channel_a1_plot_ax =  channel_a1_plot.add_subplot(111)
+        channel_a1_plot_canvas = FigureCanvasTkAgg(channel_a1_plot, heat_map_frame)
+        channel_a1_plot_canvas._tkcanvas.grid(row=3, column = 4, padx=10, pady=10 , columnspan = 4, rowspan = 3)
+        channel_a1_plot_canvas.show()        
+        
+        channel_a2_plot = Figure(figsize = (4,2.5))
+        channel_a2_plot_ax =  channel_a2_plot.add_subplot(111)
+        channel_a2_plot_canvas = FigureCanvasTkAgg(channel_a2_plot, heat_map_frame)
+        channel_a2_plot_canvas._tkcanvas.grid(row=6, column = 0, padx=10, pady=10 , columnspan = 4, rowspan = 3)
+        channel_a2_plot_canvas.show()    
+##
+        channel_a3_plot = Figure(figsize = (4,2.5))
+        channel_a3_plot_ax =  channel_a3_plot.add_subplot(111)
+        channel_a3_plot_canvas = FigureCanvasTkAgg(channel_a3_plot, heat_map_frame)
+        channel_a3_plot_canvas._tkcanvas.grid(row=6, column = 4, padx=10, pady=10 , columnspan = 4, rowspan = 3)
+        channel_a3_plot_canvas.show()           
+#        
+        energy_map_plot = Figure(figsize = (4,8))
+        energy_map_plot_ax =  energy_map_plot.add_subplot(111)
+        energy_map_plot_canvas = FigureCanvasTkAgg(energy_map_plot, energy_map_frame)
+        energy_map_plot_canvas._tkcanvas.grid(row=0, column = 0, padx=10, pady=10 , columnspan = 4, rowspan = 3)
+        energy_map_plot_canvas.show()          
+        
+        
+        energy_map_plot1 = Figure(figsize = (4,8))
+        energy_map_plot1_ax =  energy_map_plot1.add_subplot(111)
+        energy_map_plot1_canvas = FigureCanvasTkAgg(energy_map_plot1, energy_map_frame)
+        energy_map_plot1_canvas._tkcanvas.grid(row=0, column = 4, padx=10, pady=10 , columnspan = 4, rowspan = 3)
+        energy_map_plot1_canvas.show()           
+        
+        
+        heat_map_frame.pack(side=tk.LEFT)
+        energy_map_frame.pack(side = tk.RIGHT)
+        map_frame.pack(fill = tk.Y)      
+        
+                              
 #    	control_frame = tk.Frame(self, ...) # toolframe = tk.Frame(self, height=20, bg='#F7EED6')#, relief=tk.RAISED)
 #
 #    	button
@@ -1391,6 +1473,13 @@ class EnergyPage(tk.Frame):
 
     def set_plot_panel(self, parent, controller):
     	return
+    
+    
+    def plot_heat_map(self, channel, tp_low, tp_high, canvas1, ax1, canvas2, ax2, canvas3, ax3, canvas4, ax4, canvas5, ax5, canvas6, ax6):
+        return
+    
+    def get_info_from_self(self):
+        chn = self.channel_no.get()
      
 app = BlueNoseApp()
 #ani = animation.FuncAnimation(f, animate, interval=10000)
