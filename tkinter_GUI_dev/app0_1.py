@@ -39,17 +39,17 @@ SMALL_FONT = ("Helvetica", 8)
 
 #-----------------------DATA PROCESSING-- Configurations--------------------
 trLayout_bluenose = [1, 33, 17, 29, 13, 93, 49, 81, 65, 77, 61, 21, 25, 9, 41, 5, 37,
-            69, 73, 57, 89, 53, 85, 45, 2, 34, 18, 30, 14, 94, 50, 82, 66, 78,
-            62, 22, 26, 10, 42, 6, 38, 70, 74, 58, 90, 54, 86, 46, 3, 35, 19, 
-            31, 15, 95, 51, 83, 67, 79, 63, 23, 27, 11, 43, 7, 39, 71, 75, 59,
-            91, 55, 87, 47, 4, 36, 20, 32, 16, 96, 52, 84, 68, 80, 64, 24, 28,
-            12, 44, 8, 40, 72, 76, 60, 92, 56, 88, 48]
+                     69, 73, 57, 89, 53, 85, 45, 2, 34, 18, 30, 14, 94, 50, 82, 66, 78,
+                     62, 22, 26, 10, 42, 6, 38, 70, 74, 58, 90, 54, 86, 46, 3, 35, 19,
+                     31, 15, 95, 51, 83, 67, 79, 63, 23, 27, 11, 43, 7, 39, 71, 75, 59,
+                     91, 55, 87, 47, 4, 36, 20, 32, 16, 96, 52, 84, 68, 80, 64, 24, 28,
+                     12, 44, 8, 40, 72, 76, 60, 92, 56, 88, 48]
 
 trLayout_fraudhover = [1,17,13, 33, 5 ,93, 49, 65, 61, 81, 77, 21, 25, 41, 37, 9,29 , 69, 73, 89, 85, 57,
- 53, 45, 2 ,18, 14, 34, 6 ,94, 50, 66, 62, 82, 78 ,22, 26, 42, 38, 10, 30, 70, 74,
- 90, 86, 58, 54, 46, 3, 19, 15, 35, 7 ,95, 51, 67, 63, 83, 79, 23, 27 ,43, 39, 11,
- 31, 71, 75, 91, 87, 59, 55, 47 ,4 ,20, 16, 36, 8 ,96, 52, 68, 64, 84, 80, 24, 28,
- 44 ,40, 12, 32, 72, 76, 92, 88, 60, 56, 48]
+                       53, 45, 2 ,18, 14, 34, 6 ,94, 50, 66, 62, 82, 78 ,22, 26, 42, 38, 10, 30, 70, 74,
+                       90, 86, 58, 54, 46, 3, 19, 15, 35, 7 ,95, 51, 67, 63, 83, 79, 23, 27 ,43, 39, 11,
+                       31, 71, 75, 91, 87, 59, 55, 47 ,4 ,20, 16, 36, 8 ,96, 52, 68, 64, 84, 80, 24, 28,
+                       44 ,40, 12, 32, 72, 76, 92, 88, 60, 56, 48]
 
 trLayout = np.linspace(1, 96, 96, dtype = 'uint')
 trLayout =  np.asarray(trLayout) - 1
@@ -286,7 +286,8 @@ def find_envelope(signal):
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False, show=False, ax=None):
 
-    """Detect peaks in data based on their amplitude and other features.
+    """
+    Detect peaks in data based on their amplitude and other features.
 
     Parameters
     ----------
@@ -1381,7 +1382,38 @@ class EnergyPage(tk.Frame):
         toolframe = tk.Frame(self, height=15, bg='#F7EED6')#, relief=tk.RAISED)
         frame = tk.Frame(toolframe, bg='#F7EED6')
                          
-                         
+        map_frame = tk.Frame(self, height=605, width = 500, bg='#000000')
+        heat_map_frame = tk.Frame(map_frame, bg='#000000')
+        energy_map_frame = tk.Frame(map_frame, bg = "#000000")
+
+        channel_m2_plot = Figure(figsize = (4,2.5))
+        channel_m2_plot_ax =  channel_m2_plot.add_subplot(111)
+        channel_m2_plot_canvas = FigureCanvasTkAgg(channel_m2_plot, heat_map_frame)
+
+        channel_m1_plot = Figure(figsize = (4,2.5))
+        channel_m1_plot_ax =  channel_m1_plot.add_subplot(111)
+        channel_m1_plot_canvas = FigureCanvasTkAgg(channel_m1_plot, heat_map_frame)
+        channel_m0_plot = Figure(figsize = (4,2.5))
+        channel_m0_plot_ax =  channel_m0_plot.add_subplot(111)
+        channel_m0_plot_canvas = FigureCanvasTkAgg(channel_m0_plot, heat_map_frame)
+
+        channel_a1_plot = Figure(figsize = (4,2.5))
+        channel_a1_plot_ax =  channel_a1_plot.add_subplot(111)
+        channel_a1_plot_canvas = FigureCanvasTkAgg(channel_a1_plot, heat_map_frame)
+        channel_a2_plot = Figure(figsize = (4,2.5))
+        channel_a2_plot_ax =  channel_a2_plot.add_subplot(111)
+        channel_a2_plot_canvas = FigureCanvasTkAgg(channel_a2_plot, heat_map_frame)
+
+        channel_a3_plot = Figure(figsize = (4,2.5))
+        channel_a3_plot_ax =  channel_a3_plot.add_subplot(111)
+        channel_a3_plot_canvas = FigureCanvasTkAgg(channel_a3_plot, heat_map_frame)
+        energy_map_plot = Figure(figsize = (4,8))
+        energy_map_plot_ax =  energy_map_plot.add_subplot(111)
+        energy_map_plot_canvas = FigureCanvasTkAgg(energy_map_plot, energy_map_frame)
+        energy_map_plot1 = Figure(figsize = (4,8))
+        energy_map_plot1_ax =  energy_map_plot1.add_subplot(111)
+        energy_map_plot1_canvas = FigureCanvasTkAgg(energy_map_plot1, energy_map_frame)
+
         tk.Label(frame, text="TrLayout", 
                  font=NORM_FONT).grid(row=0, column=0, padx=1, pady=1, sticky=tk.E)
         tr_layout_box = ttk.Combobox(frame, textvariable = self.trLayout, width = 10, values = TR_LAYOUT_NAME )
@@ -1397,62 +1429,50 @@ class EnergyPage(tk.Frame):
         tk.Label(frame, text= "Time Point Range", font=NORM_FONT).grid(row=0, column=8, padx=1, pady=1, sticky=tk.E)
         tk.Entry( frame, textvariable = self.range_low ).grid(row=0, column=9, padx=1, pady=1, sticky=tk.E)
         tk.Entry( frame, textvariable = self.range_high ).grid(row=0, column=10, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=15,text= "Plot Heat Map",  command=showdialog).grid(row=0, column=11, padx=1, pady=1, sticky=tk.E)
-        ttk.Button(frame, width=15, text= "Plot Energy Map",  command=showdialog).grid(row=0, column=12, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=15,text= "Plot Heat Map",  command = lambda: self.plot_heat_map(channel_m2_plot_canvas, channel_m2_plot_ax,
+                                                                                        channel_m1_plot_canvas, channel_m1_plot_ax,
+                                                                                        channel_m0_plot_canvas, channel_m0_plot_ax,
+                                                                                        channel_a1_plot_canvas, channel_a1_plot_ax,
+                                                                                        channel_a2_plot_canvas, channel_a2_plot_ax,
+                                                                                        channel_a3_plot_canvas, channel_a3_plot_ax)).grid(row=0, column=11, padx=1, pady=1, sticky=tk.E)
+        ttk.Button(frame, width=15, text= "Plot Energy Map",  command=lambda: self.plot_energy_map(energy_map_plot_canvas, energy_map_plot_ax,
+                                                                                                   energy_map_plot1_canvas, energy_map_plot1_ax)).grid(row=0, column=12, padx=1, pady=1, sticky=tk.E)
         ttk.Button(frame, width=15, text= "Plot All",  command=showdialog).grid(row=0, column=13, padx=1, pady=1, sticky=tk.E)
         frame.pack(side=tk.LEFT)
         toolframe.pack(fill=tk.X)
         
-        map_frame = tk.Frame(self, height=605, width = 500, bg='#000000')
-        heat_map_frame = tk.Frame(map_frame, bg='#000000')
-        energy_map_frame = tk.Frame(map_frame, bg = "#000000")                          
+
         
-        channel_m2_plot = Figure(figsize = (4,2.5))
-        channel_m2_plot_ax =  channel_m2_plot.add_subplot(111)
-        channel_m2_plot_canvas = FigureCanvasTkAgg(channel_m2_plot, heat_map_frame)
+
         channel_m2_plot_canvas._tkcanvas.grid(row=0, column = 0, padx=10, pady=10 , columnspan = 4, rowspan = 3)
         channel_m2_plot_canvas.show()        
 
-        channel_m1_plot = Figure(figsize = (4,2.5))
-        channel_m1_plot_ax =  channel_m1_plot.add_subplot(111)
-        channel_m1_plot_canvas = FigureCanvasTkAgg(channel_m1_plot, heat_map_frame)
+
         channel_m1_plot_canvas._tkcanvas.grid(row=0, column = 4, padx=10, pady=10 , columnspan = 4, rowspan = 3)
         channel_m1_plot_canvas.show()
 #        
-        channel_m0_plot = Figure(figsize = (4,2.5))
-        channel_m0_plot_ax =  channel_m0_plot.add_subplot(111)
-        channel_m0_plot_canvas = FigureCanvasTkAgg(channel_m0_plot, heat_map_frame)
+
         channel_m0_plot_canvas._tkcanvas.grid(row=3, column = 0, padx=10, pady=10 , columnspan = 4, rowspan = 3)
         channel_m0_plot_canvas.show()        
 ##
-        channel_a1_plot = Figure(figsize = (4,2.5))
-        channel_a1_plot_ax =  channel_a1_plot.add_subplot(111)
-        channel_a1_plot_canvas = FigureCanvasTkAgg(channel_a1_plot, heat_map_frame)
+
         channel_a1_plot_canvas._tkcanvas.grid(row=3, column = 4, padx=10, pady=10 , columnspan = 4, rowspan = 3)
         channel_a1_plot_canvas.show()        
         
-        channel_a2_plot = Figure(figsize = (4,2.5))
-        channel_a2_plot_ax =  channel_a2_plot.add_subplot(111)
-        channel_a2_plot_canvas = FigureCanvasTkAgg(channel_a2_plot, heat_map_frame)
+
         channel_a2_plot_canvas._tkcanvas.grid(row=6, column = 0, padx=10, pady=10 , columnspan = 4, rowspan = 3)
         channel_a2_plot_canvas.show()    
 ##
-        channel_a3_plot = Figure(figsize = (4,2.5))
-        channel_a3_plot_ax =  channel_a3_plot.add_subplot(111)
-        channel_a3_plot_canvas = FigureCanvasTkAgg(channel_a3_plot, heat_map_frame)
+
         channel_a3_plot_canvas._tkcanvas.grid(row=6, column = 4, padx=10, pady=10 , columnspan = 4, rowspan = 3)
         channel_a3_plot_canvas.show()           
 #        
-        energy_map_plot = Figure(figsize = (4,8))
-        energy_map_plot_ax =  energy_map_plot.add_subplot(111)
-        energy_map_plot_canvas = FigureCanvasTkAgg(energy_map_plot, energy_map_frame)
+
         energy_map_plot_canvas._tkcanvas.grid(row=0, column = 0, padx=10, pady=10 , columnspan = 4, rowspan = 3)
         energy_map_plot_canvas.show()          
         
         
-        energy_map_plot1 = Figure(figsize = (4,8))
-        energy_map_plot1_ax =  energy_map_plot1.add_subplot(111)
-        energy_map_plot1_canvas = FigureCanvasTkAgg(energy_map_plot1, energy_map_frame)
+
         energy_map_plot1_canvas._tkcanvas.grid(row=0, column = 4, padx=10, pady=10 , columnspan = 4, rowspan = 3)
         energy_map_plot1_canvas.show()           
         
@@ -1475,12 +1495,67 @@ class EnergyPage(tk.Frame):
     	return
     
     
-    def plot_heat_map(self, channel, tp_low, tp_high, canvas1, ax1, canvas2, ax2, canvas3, ax3, canvas4, ax4, canvas5, ax5, canvas6, ax6):
-        return
+    def plot_heat_map(self, canvas1, ax1, canvas2, ax2, canvas3, ax3, canvas4, ax4, canvas5, ax5, canvas6, ax6):
+        chn, low, high = self.get_info_from_self()
+        heat_map_m2 = np.transpose(SIGNAL_MATRICES[(chn - 2)%96, :, low:high].astype(float))
+        heat_map_m1 = np.transpose(SIGNAL_MATRICES[(chn - 1)%96, :, low:high].astype(float))
+        heat_map_m0 = np.transpose(SIGNAL_MATRICES[chn, :, low:high].astype(float))
+        heat_map_a1 = np.transpose(SIGNAL_MATRICES[(chn + 1)%96, :, low:high].astype(float))
+        heat_map_a2 = np.transpose(SIGNAL_MATRICES[(chn + 2) % 96, :, low:high].astype(float))
+        heat_map_a3 = np.transpose(SIGNAL_MATRICES[(chn + 3) % 96, :, low:high].astype(float))
+
+        ax1.clear()
+        ax2.clear()
+        ax3.clear()
+        ax4.clear()
+        ax5.clear()
+        ax6.clear()
+        ax1.imshow(heat_map_m2, aspect='auto',interpolation='none', cmap=plt.cm.jet)
+        ax2.imshow(heat_map_m1, aspect='auto', interpolation='none', cmap=plt.cm.jet)
+        ax3.imshow(heat_map_m0, aspect='auto', interpolation='none', cmap=plt.cm.jet)
+        ax4.imshow(heat_map_a1, aspect='auto', interpolation='none', cmap=plt.cm.jet)
+        ax5.imshow(heat_map_a2, aspect='auto', interpolation='none', cmap=plt.cm.jet)
+        ax6.imshow(heat_map_a3, aspect='auto', interpolation='none', cmap=plt.cm.jet)
+
+        canvas1.draw()
+        canvas2.draw()
+        canvas3.draw()
+        canvas4.draw()
+        canvas5.draw()
+        canvas6.draw()
+        print("Done Drawing")
+
+
+    def plot_energy_map(self, canvas1, ax1, canvas2, ax2):
+        chn, low, high, tr_layout = self.get_info_from_self(trLayout = True)
+        ax1.clear()
+        ax2.clear()
+        energy_map1 = np.zeros(MATRIX_SIZE, dtype='float64')
+        TOTAL_CHN, TOTAL_ROUND, SIGNAL_LENGTH = SIGNAL_MATRICES.shape
+        for chn in range(TOTAL_CHN):
+            for rd in range(TOTAL_ROUND):
+                signal = SIGNAL_MATRICES[tr_layout[chn], rd, low:high]
+                signal_sum = sum(np.absolute(signal))
+                energy_map1[chn, rd] = signal_sum
+        ax1.imshow(energy_map1, aspect='auto', interpolation='none', cmap=plt.cm.jet)
+        ax2.imshow(energy_map1, aspect='auto', interpolation='none', cmap=plt.cm.jet)
+        canvas1.draw()
+        canvas2.draw()
+        print("Done Drawing energy map")
+
+
     
-    def get_info_from_self(self):
-        chn = self.channel_no.get()
-     
+    def get_info_from_self(self, trLayout = False):
+        channel_no = int(self.channel_no.get())
+        Layout_index = TR_LAYOUT_NAME.index(self.trLayout.get())
+        tr_layout = TR_LAYOUT[Layout_index]
+        channel_no = tr_layout[channel_no]
+        low = self.range_low.get()
+        high = self.range_high.get()
+        if trLayout == False:
+            return channel_no, low, high
+        else:
+            return channel_no, low, high, tr_layout
 app = BlueNoseApp()
 #ani = animation.FuncAnimation(f, animate, interval=10000)
 app.mainloop()    
